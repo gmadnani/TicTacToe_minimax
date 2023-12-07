@@ -9,6 +9,8 @@ import javafx.scene.layout.GridPane;
 import javafx.scene.layout.HBox;
 import javafx.stage.Stage;
 
+import java.util.Random;
+
 public class TicTacToe extends Application {
     private static final int SIZE = 3;
     private Button[][] buttons = new Button[SIZE][SIZE];
@@ -104,6 +106,35 @@ public class TicTacToe extends Application {
         }
     }
 
+
+    private GridPane createGridPane(Stage gameStage) {
+        GridPane gridPane = new GridPane();
+
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                Button button = new Button();
+                button.setMinSize(100, 100);
+                button.setOnAction(e -> handleButtonClick(button, gameStage));
+                buttons[i][j] = button;
+                gridPane.add(button, j, i);
+            }
+        }
+
+        return gridPane;
+    }
+
+    private HBox createButtonBox(Stage gameStage) {
+        HBox buttonBox = new HBox(10);
+        Button restartButton = new Button("Restart");
+        restartButton.setOnAction(e -> resetGame());
+        Button exitButton = new Button("Exit");
+        exitButton.setOnAction(e -> gameStage.close());
+
+        buttonBox.getChildren().addAll(restartButton, exitButton);
+
+        return buttonBox;
+    }
+
     private void handleButtonClick(Button button, Stage gameStage) {
         if (button.getText().isEmpty()) {
             button.setText(playerXTurn ? "X" : "O");
@@ -128,6 +159,143 @@ public class TicTacToe extends Application {
         } else if (cvcMode) {
             makeComputerVsComputerMove();
         }
+    }
+
+    private void makeComputerVsPlayerMove() {
+        int[] bestMove = minimax(buttons, 0, true);
+        int row = bestMove[0];
+        int col = bestMove[1];
+
+        buttons[row][col].setText("O");
+
+        if (checkForWinner()) {
+            displayOutcome("O", null);
+        } else if (isBoardFull()) {
+            displayOutcome("Draw", null);
+        } else {
+            playerXTurn = true;
+        }
+    }
+
+    private int[] minimax(Button[][] board, int depth, boolean maximizingPlayer) {
+        int[] bestMove = {-1, -1};
+        int bestScore = maximizingPlayer ? Integer.MIN_VALUE : Integer.MAX_VALUE;
+
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                if (board[i][j].getText().isEmpty()) {
+                    board[i][j].setText(maximizingPlayer ? "O" : "X");
+
+                    int score = minimaxScore(board, depth - 1, !maximizingPlayer);
+
+                    board[i][j].setText(""); // Undo the move
+
+                    if ((maximizingPlayer && score > bestScore) || (!maximizingPlayer && score < bestScore)) {
+                        bestScore = score;
+                        bestMove[0] = i;
+                        bestMove[1] = j;
+                    }
+                }
+            }
+        }
+
+        return bestMove;
+    }
+
+    private int minimaxScore(Button[][] board, int depth, boolean maximizingPlayer) {
+        if (checkForWinner()) {
+            return maximizingPlayer ? -1 : 1;
+        } else if (isBoardFull() || depth == 0) {
+            return 0;
+        }
+
+        int score = maximizingPlayer ? Integer.MIN_VALUE : Integer.MAX_VALUE;
+
+        for (int i = 0; i < SIZE; i++) {
+            for (int j = 0; j < SIZE; j++) {
+                if (board[i][j].getText().isEmpty()) {
+                    board[i][j].setText(maximizingPlayer ? "O" : "X");
+
+                    int currentScore = minimaxScore(board, depth - 1, !maximizingPlayer);
+
+                    board[i][j].setText(""); // Undo the move
+
+                    score = maximizingPlayer ? Math.max(score, currentScore) : Math.min(score, currentScore);
+                }
+            }
+        }
+
+        return score;
+    }
+
+
+    private void makeComputerVsComputerMove() {
+        Random random = new Random();
+
+        String symbol = playerXTurn ? "X" : "O";
+
+        int row, col;
+        do {
+            row = random.nextInt(SIZE);
+            col = random.nextInt(SIZE);
+        } while (!buttons[row][col].getText().isEmpty());
+
+        buttons[row][col].setText(symbol);
+
+        if (checkForWinner()) {
+            displayOutcome(symbol, null);
+        } else if (isBoardFull()) {
+            displayOutcome("Draw", null);
+        } else {
+            playerXTurn = !playerXTurn;
+            makeComputerMove();
+        }
+    }
+
+    private boolean checkForWinner() {
+        return checkRows() || checkColumns() || checkDiagonals();
+    }
+
+    private boolean checkRows() {
+        for (int i = 0; i < SIZE; i++) {
+            if (!buttons[i][0].getText().isEmpty() &&
+                    buttons[i][0].getText().equals(buttons[i][1].getText()) &&
+                    buttons[i][0].getText().equals(buttons[i][2].getText())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean checkColumns() {
+        for (int i = 0; i < SIZE; i++) {
+            if (!buttons[0][i].getText().isEmpty() &&
+                    buttons[0][i].getText().equals(buttons[1][i].getText()) &&
+                    buttons[0][i].getText().equals(buttons[2][i].getText())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean checkDiagonals() {
+        return (!buttons[0][0].getText().isEmpty() &&
+                buttons[0][0].getText().equals(buttons[1][1].getText()) &&
+                buttons[0][0].getText().equals(buttons[2][2].getText())) ||
+                (!buttons[0][2].getText().isEmpty() &&
+                        buttons[0][2].getText().equals(buttons[1][1].getText()) &&
+                        buttons[0][2].getText().equals(buttons[2][0].getText()));
+    }
+
+    private boolean isBoardFull() {
+        for (Button[] row : buttons) {
+            for (Button button : row) {
+                if (button.getText().isEmpty()) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     private void displayOutcome(String winner, Stage gameStage) {
